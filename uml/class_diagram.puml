@@ -1,0 +1,77 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam monochrome true
+skinparam shadowing false
+
+package "Core" {
+
+    abstract class Node {
+        -node_id: str
+        -address: str
+        -online: bool
+        +node_id(): str
+        +{abstract} send(message: dict): dict
+        +{abstract} receive(): dict
+        +connect()
+        +disconnect()
+    }
+
+    class DataPeerNode {
+        -bandwidth: float
+        -local_files: dict
+        -chunk_cache: dict
+        -tracker: MetadataTrackerNode
+        +bandwidth(): float
+        +share_file(data: bytes, filename: str): FileMetadata
+        +register_with_tracker(tracker)
+        +_serve_chunk(file_hash, chunk_idx)
+    }
+
+    class MetadataTrackerNode {
+        -swarm_registry: dict
+        -peer_registry: dict
+        +register_peer(peer)
+        +register_file(file_hash, peer)
+        +find_peers(file_hash, limit): List[DataPeerNode]
+    }
+
+    class FileMetadata {
+        -DEFAULT_CHUNK_SIZE: int
+        -filename: str
+        -size_bytes: int
+        -chunk_size: int
+        -chunk_count: int
+        -file_hash: str
+        -chunks: List[ChunkData]
+        +filename(): str
+        +size_bytes(): int
+        +file_hash(): str
+        +chunk_count(): int
+    }
+
+    class ChunkData {
+        -file_hash: str
+        -chunk_index: int
+        -data: bytes
+        -checksum: str
+        +verify(): bool
+    }
+
+    class Swarm {
+        -file_hash: str
+        -peers: Set[DataPeerNode]
+        +add_peer(peer)
+        +remove_peer(peer)
+    }
+}
+
+' Relationships
+DataPeerNode --|> Node
+MetadataTrackerNode --|> Node
+DataPeerNode "1" --> "1" FileMetadata : shares
+FileMetadata "1" --> "*" ChunkData : contains
+MetadataTrackerNode "1" --> "*" Swarm : manages
+Swarm "1" --> "*" DataPeerNode : contains
+DataPeerNode "1" --> "0..1" MetadataTrackerNode : registers with
+
+@enduml
